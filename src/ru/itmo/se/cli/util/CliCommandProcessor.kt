@@ -4,9 +4,16 @@ import ru.itmo.se.cli.command.*
 import ru.itmo.se.cli.exception.CommandNotFoundException
 import ru.itmo.se.cli.exception.ExitCommandException
 
+/**
+ * Command Processor is used to interpret Tokens to Commands,
+ * substitute variable values, and run Command execution
+ */
 class CliCommandProcessor {
     private val environment = CliEnvironment()
 
+    /**
+     * Runs execution of Commands in pipeline and prints output
+     */
     fun executeCommands(commands: List<Command>) {
         val prevRes = collectPipelineResult(commands)
         if (prevRes != null) {
@@ -25,19 +32,27 @@ class CliCommandProcessor {
         return prevRes
     }
 
+    /**
+     * Interprets Tokens of each command in pipeline to list of Command.
+     * Adds new variables to environment.
+     * Performs substitution of variables values in arguments if needed
+     */
     fun buildPipeline(tokens: List<List<Token>>): List<Command> {
         val commands: MutableList<Command> = ArrayList()
         for (command in tokens) {
             when (command.first().type) {
                 TokenType.COMMAND -> commands.add(buildCommand(command))
-                TokenType.VAR -> if (tokens.size == 1) buildVarsDeclCommands(command)
+                TokenType.VAR -> if (tokens.size == 1) resolveVarsDeclCommands(command)
                 else -> throw CommandNotFoundException(command.first().content)
             }
         }
         return commands
     }
 
-    private fun buildVarsDeclCommands(tokens: List<Token>) {
+    /**
+     * Processes variable declaration tokens and adds variables to the storage
+     */
+    private fun resolveVarsDeclCommands(tokens: List<Token>) {
         tokens
             .chunked(2)
             .forEach { (o1, o2) ->

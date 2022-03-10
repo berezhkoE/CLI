@@ -1,5 +1,8 @@
 package ru.itmo.se.cli.util
 
+/**
+ * Storage for environment variables
+ */
 class CliEnvironment {
     private val variables: MutableMap<String, String> = HashMap()
 

@@ -1,6 +1,8 @@
 package ru.itmo.se.cli.util
 
-
+/**
+ * Command parser
+ */
 class CliParser {
     private val commandRegex = Regex(
         "(\\w+=(?:[^ \"]*\"[^\"]*\"[^ \"]*)+)" +
@@ -18,6 +20,10 @@ class CliParser {
 
     private val pipelineRegex = Regex("(?:[^\"|]*\"[^\"]*\"[^\"|]*)+|(?:[^\'|]*'[^\']*'[^\'|]*)+|[^|]+")
 
+    /**
+     * Splits input by pipeline symbol and parses each command in pipeline
+     * @return List<List<Token>> - list of Tokens for each command in pipeline
+     */
     fun parseInput(input: String): List<List<Token>> {
         return splitInputByPipeline(input).map { parseCommand(it) }
     }
