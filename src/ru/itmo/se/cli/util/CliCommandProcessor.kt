@@ -138,6 +138,8 @@ class CliCommandProcessor {
             "echo" -> Echo(tokensToArguments(args))
             "wc" -> Wc(tokensToArguments(args))
             "pwd" -> Pwd()
+            "cd" -> Cd(tokensToArguments(args))
+            "ls" -> Ls(tokensToArguments(args))
             "exit" -> throw ExitCommandException()
             else -> ExternalCommand(tokensToArguments(tokens).joinToString(" "))
         }
