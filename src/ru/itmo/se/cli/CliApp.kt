@@ -1,6 +1,6 @@
 package ru.itmo.se.cli
 
-import ru.itmo.se.cli.exception.CommandNotFoundException
+import ru.itmo.se.cli.exception.CliRuntimeException
 import ru.itmo.se.cli.exception.ExitCommandException
 import ru.itmo.se.cli.util.CliCommandProcessor
 import ru.itmo.se.cli.util.CliParser
@@ -18,7 +18,7 @@ fun main() {
                 parser.parseInput(scanner.nextLine())
             )
             commandProcessor.executeCommands(commandList)
-        } catch (e: CommandNotFoundException) {
+        } catch (e: CliRuntimeException) {
             println(e.message)
         } catch (_: ExitCommandException) {
             break
