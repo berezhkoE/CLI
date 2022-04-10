@@ -1,6 +1,8 @@
 package ru.itmo.se.cli.util
 
 import ru.itmo.se.cli.command.*
+import ru.itmo.se.cli.command.clikit.CliktCommandAdapter
+import ru.itmo.se.cli.command.clikit.Grep
 import ru.itmo.se.cli.exception.CommandNotFoundException
 import ru.itmo.se.cli.exception.ExitCommandException
 
@@ -138,6 +140,7 @@ class CliCommandProcessor {
             "echo" -> Echo(tokensToArguments(args))
             "wc" -> Wc(tokensToArguments(args))
             "pwd" -> Pwd()
+            "grep" -> CliktCommandAdapter(Grep(), tokensToArguments(args))
             "exit" -> throw ExitCommandException()
             else -> ExternalCommand(tokensToArguments(tokens).joinToString(" "))
         }
