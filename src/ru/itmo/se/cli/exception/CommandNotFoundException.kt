@@ -1,3 +1,3 @@
 package ru.itmo.se.cli.exception
 
-class CommandNotFoundException(command: String) : RuntimeException("$command: command not found")
+class CommandNotFoundException(command: String) : CliRuntimeException("$command: command not found")

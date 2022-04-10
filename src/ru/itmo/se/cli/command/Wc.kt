@@ -1,6 +1,9 @@
 package ru.itmo.se.cli.command
 
+import ru.itmo.se.cli.exception.FileIsDirectoryException
+import ru.itmo.se.cli.exception.NoSuchFileOrDirectoryException
 import java.io.File
+import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
 
 
@@ -32,28 +35,37 @@ class Wc(private val args: List<String>) : Command() {
         for (str in args) {
             if (str.isNotBlank()) {
                 val file = File(str)
-                byteCount = file.length()
-                totalByteCount += byteCount
+                try {
+                    byteCount = file.length()
+                    totalByteCount += byteCount
 
-                wordCount = 0
-                lineCount = 0
-                File(str).bufferedReader().useLines {
-                    it.forEach { line ->
-                        if (line.isNotEmpty()) {
-                            wordCount += line.split(Regex("\\s+")).size
+                    wordCount = 0
+                    lineCount = 0
+                    File(str).bufferedReader().useLines {
+                        it.forEach { line ->
+                            if (line.isNotEmpty()) {
+                                wordCount += line.split(Regex("\\s+")).size
+                            }
+                            lineCount += 1
                         }
-                        lineCount += 1
+                    }
+
+                    totalLineCount += lineCount
+                    totalWordCount += wordCount
+
+                    val argRes = mutableListOf(lineCount, wordCount, byteCount)
+                        .map { it.toString() }
+                        .toMutableList()
+                    argRes.add(file.name)
+                    result.add(argRes)
+                } catch (_: FileNotFoundException) {
+                    if (file.isDirectory) {
+                        throw FileIsDirectoryException("wc", str)
+                    }
+                    if (!file.isFile) {
+                        throw NoSuchFileOrDirectoryException("wc", str)
                     }
                 }
-
-                totalLineCount += lineCount
-                totalWordCount += wordCount
-
-                val argRes = mutableListOf(lineCount, wordCount, byteCount)
-                    .map { it.toString() }
-                    .toMutableList()
-                argRes.add(file.name)
-                result.add(argRes)
             }
         }
 
