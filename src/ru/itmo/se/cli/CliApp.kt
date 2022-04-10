@@ -1,5 +1,6 @@
 package ru.itmo.se.cli
 
+import com.github.ajalt.clikt.core.UsageError
 import ru.itmo.se.cli.exception.CliRuntimeException
 import ru.itmo.se.cli.exception.ExitCommandException
 import ru.itmo.se.cli.util.CliCommandProcessor
@@ -22,6 +23,8 @@ fun main() {
             println(e.message)
         } catch (_: ExitCommandException) {
             break
+        } catch (e: UsageError) {
+            println(e.text)
         }
     }
 }

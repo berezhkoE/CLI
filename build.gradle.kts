@@ -13,6 +13,7 @@ repositories {
 dependencies {
     implementation("org.jetbrains:annotations:22.0.0")
     implementation(kotlin("stdlib-jdk8"))
+    implementation("com.github.ajalt.clikt:clikt:3.4.0")
 
     testImplementation(platform("org.junit:junit-bom:5.8.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
