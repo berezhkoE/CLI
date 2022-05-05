@@ -15,7 +15,7 @@ class CliParser {
                 "|" +
                 "(?:[^ ']*'[^']*'[^ ']*)+" +
                 "|" +
-                "\\$\\w+|\\S+)"
+                "\\$\\w+|\\S+)(?:(?=\\s)|\$)"
     )
 
     private val pipelineRegex = Regex("(?:[^\"|]*\"[^\"]*\"[^\"|]*)+|(?:[^\'|]*'[^\']*'[^\'|]*)+|[^|]+")
@@ -47,14 +47,11 @@ class CliParser {
         }
 
         return matchResultSequence
-            .map {
-                val indexOfEq = it.value.indexOf('=')
-                listOf(
-                    Token(it.value.substring(0 until indexOfEq), TokenType.VAR),
-                    Token(it.value.substring(indexOfEq + 1), TokenType.ARG)
-                )
+            .flatMap {
+                it.value.split("=", limit = 2).let { (f, s) ->
+                    sequenceOf(Token(f, TokenType.VAR), Token(s, TokenType.ARG))
+                }
             }
-            .flatten()
             .toList()
     }
 

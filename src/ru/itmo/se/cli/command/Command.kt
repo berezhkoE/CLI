@@ -1,7 +1,8 @@
 package ru.itmo.se.cli.command
 
-abstract class Command {
-    var prevOutput: String? = null
+import java.io.Reader
+import java.io.Writer
 
-    abstract fun execute(): String
+interface Command {
+    fun execute(input: Reader, output: Writer): Int
 }

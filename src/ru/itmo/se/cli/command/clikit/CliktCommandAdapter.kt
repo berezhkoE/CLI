@@ -4,16 +4,17 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.output.CliktConsole
 import ru.itmo.se.cli.command.Command
+import java.io.Reader
+import java.io.Writer
 
-class CliktCommandAdapter(private val command: CliktCommand, private val args: List<String>) : Command() {
-    override fun execute(): String {
-        val result: MutableList<String> = ArrayList()
+class CliktCommandAdapter(private val command: CliktCommand, private val args: List<String>) : Command {
+    override fun execute(input: Reader, output: Writer): Int {
         command.context {
             console = object : CliktConsole {
-                override val lineSeparator: String get() = ""
+                override val lineSeparator: String get() = "\n"
 
                 override fun print(text: String, error: Boolean) {
-                    result.add(text)
+                    output.append(text)
                 }
 
                 override fun promptForLine(prompt: String, hideInput: Boolean): String? {
@@ -22,6 +23,7 @@ class CliktCommandAdapter(private val command: CliktCommand, private val args: L
             }
         }
         command.parse(args)
-        return result.joinToString("\n")
+        output.flush()
+        return 0
     }
 }

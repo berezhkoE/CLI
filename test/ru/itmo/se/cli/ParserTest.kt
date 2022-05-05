@@ -62,4 +62,18 @@ class ParserTest {
 
         Assertions.assertTrue(expected == parser.parseInput(input))
     }
+
+    @Test
+    fun testCommandWithSeveralDollarSigns() {
+        val input = "\$x\$y\$z 1"
+
+        val expected = listOf(
+            listOf(
+                Token("\$x\$y\$z", TokenType.COMMAND),
+                Token("1", TokenType.ARG)
+            )
+        )
+
+        Assertions.assertTrue(expected == parser.parseInput(input))
+    }
 }

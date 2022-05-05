@@ -1,30 +1,25 @@
 package ru.itmo.se.cli
 
-import com.github.ajalt.clikt.core.UsageError
-import ru.itmo.se.cli.exception.CliRuntimeException
-import ru.itmo.se.cli.exception.ExitCommandException
 import ru.itmo.se.cli.util.CliCommandProcessor
 import ru.itmo.se.cli.util.CliParser
 import java.util.*
 
 
 fun main() {
-    val scanner = Scanner(System.`in`)
+    val inputStream = System.`in`.reader()
+    val outputStream = System.out.writer()
+
     val parser = CliParser()
     val commandProcessor = CliCommandProcessor()
 
+    val scanner = Scanner(inputStream)
     while (scanner.hasNext()) {
-        try {
-            val commandList = commandProcessor.buildPipeline(
-                parser.parseInput(scanner.nextLine())
-            )
-            commandProcessor.executeCommands(commandList)
-        } catch (e: CliRuntimeException) {
-            println(e.message)
-        } catch (_: ExitCommandException) {
+        val commandList = commandProcessor.buildPipeline(
+            parser.parseInput(scanner.nextLine())
+        )
+        val exitCode = commandProcessor.executeCommands(commandList, inputStream, outputStream)
+        if (exitCode != 0) {
             break
-        } catch (e: UsageError) {
-            println(e.text)
         }
     }
 }

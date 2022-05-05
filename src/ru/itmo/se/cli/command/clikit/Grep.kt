@@ -3,16 +3,14 @@ package ru.itmo.se.cli.command.clikit
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
+import com.github.ajalt.clikt.parameters.arguments.default
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.defaultStdin
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
-import ru.itmo.se.cli.exception.FileIsDirectoryException
-import ru.itmo.se.cli.exception.NoSuchFileOrDirectoryException
-import java.io.InputStream
+import java.io.BufferedReader
 import java.util.regex.PatternSyntaxException
 
 class Grep : CliktCommand() {
@@ -30,37 +28,35 @@ class Grep : CliktCommand() {
     private val file by argument()
         .file()
         .convert {
-            if (it.isDirectory) {
-                throw FileIsDirectoryException("grep", it.name)
-            }
-            if (!it.isFile) {
-                throw NoSuchFileOrDirectoryException("grep", it.name)
-            }
-            it.inputStream() as InputStream
+            it.bufferedReader()
         }
-        .defaultStdin()
+        .default(BufferedReader(System.`in`.reader()))
+
 
     override fun run() {
         try {
-            val regex = Regex(
-                if (wordRegexp) "\b$pattern\b" else pattern,
-                if (ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
-            )
-
-            var count = 0
-            file.bufferedReader().useLines {
-                it.forEach { line ->
-                    if (regex.containsMatchIn(line)) {
-                        echo(line)
-                        count = afterContextNum
-                    } else if (count > 0) {
-                        echo(line)
-                        count--
-                    }
-                }
-            }
+            file.grep()
         } catch (_: PatternSyntaxException) {
-            echo("grep: Invalid regular expression")
+            error("grep: Invalid regular expression")
+        }
+    }
+
+    private fun BufferedReader.grep() {
+        val regex = Regex(
+            if (wordRegexp) "\\b$pattern\\b" else pattern,
+            if (ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
+        )
+
+        var count = 0
+
+        this.forEachLine { line ->
+            if (regex.containsMatchIn(line)) {
+                echo(line)
+                count = afterContextNum
+            } else if (count > 0) {
+                echo(line)
+                count--
+            }
         }
     }
 }
