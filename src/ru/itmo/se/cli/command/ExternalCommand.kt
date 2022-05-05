@@ -1,21 +1,24 @@
 package ru.itmo.se.cli.command
 
-import ru.itmo.se.cli.exception.CommandNotFoundException
 import java.io.IOException
+import java.io.Reader
+import java.io.Writer
 
 
-class ExternalCommand(private val command: String) : Command() {
-    override fun execute(): String {
-        val output: MutableList<String> = ArrayList()
+class ExternalCommand(private val command: String) : Command {
+    override fun execute(input: Reader, output: Writer): Int {
         try {
             val process = Runtime.getRuntime().exec(command)
             process.waitFor()
-            process.inputStream.bufferedReader().useLines {
-                it.map { line -> output.add(line) }
+            process.inputStream.bufferedReader().forEachLine { line ->
+                output.appendLine(line)
+                output.flush()
             }
+            return 0
         } catch (e: IOException) {
-            throw CommandNotFoundException(command)
+            output.appendLine("$command: command not found")
+            output.flush()
+            return 1
         }
-        return output.joinToString("\n")
     }
 }

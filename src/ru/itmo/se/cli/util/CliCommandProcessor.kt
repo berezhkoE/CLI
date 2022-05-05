@@ -1,8 +1,13 @@
 package ru.itmo.se.cli.util
 
 import ru.itmo.se.cli.command.*
-import ru.itmo.se.cli.exception.CommandNotFoundException
-import ru.itmo.se.cli.exception.ExitCommandException
+import ru.itmo.se.cli.exception.UnexpectedTokenError
+import java.io.PipedReader
+import java.io.PipedWriter
+import java.io.Reader
+import java.io.Writer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 
 /**
  * Command Processor is used to interpret Tokens to Commands,
@@ -14,22 +19,34 @@ class CliCommandProcessor {
     /**
      * Runs execution of Commands in pipeline and prints output
      */
-    fun executeCommands(commands: List<Command>) {
-        val prevRes = collectPipelineResult(commands)
-        if (prevRes != null) {
-            println(prevRes)
-        }
-    }
+    fun executeCommands(commands: List<Command>, input: Reader, output: Writer): Int {
+        val executor = Executors.newFixedThreadPool(4)
+        val futures = mutableListOf<CompletableFuture<Int>>()
 
-    fun collectPipelineResult(commands: List<Command>): String? {
-        var prevRes: String? = null
-        for (command in commands) {
-            if (prevRes != null) {
-                command.prevOutput = prevRes
-            }
-            prevRes = command.execute()
+        var curReader = input
+        for ((i, command) in commands.withIndex()) {
+            futures.add(CompletableFuture.supplyAsync({
+                val pipedWriter = PipedWriter()
+                val pipedReader = PipedReader(pipedWriter)
+
+                val exitCode = if (i == commands.lastIndex) {
+                    command.execute(curReader, output)
+                } else {
+                    command.execute(curReader, pipedWriter)
+                }
+                curReader = pipedReader
+                if (i != commands.lastIndex) {
+                    pipedWriter.close()
+                }
+                exitCode
+            }, executor))
         }
-        return prevRes
+
+        executor.shutdown()
+
+        return futures.stream()
+            .mapToInt { it.join() }
+            .sum()
     }
 
     /**
@@ -43,7 +60,7 @@ class CliCommandProcessor {
             when (command.first().type) {
                 TokenType.COMMAND -> commands.add(buildCommand(command))
                 TokenType.VAR -> if (tokens.size == 1) resolveVarsDeclCommands(command)
-                else -> throw CommandNotFoundException(command.first().content)
+                else -> throw UnexpectedTokenError(command.first().content)
             }
         }
         return commands
@@ -56,24 +73,28 @@ class CliCommandProcessor {
         tokens
             .chunked(2)
             .forEach { (o1, o2) ->
-                environment.putVariable(o1.content, resolveArgument(o2.content))
+                environment.putVariable(o1.content, resolveArguments(o2.content))
             }
     }
 
-    private fun resolveArgument(content: String): String {
+    private fun resolveArguments(content: String, isCommand: Boolean = false): String {
         return content
             .replace(Regex("\\$\\w+")) {
-                if (notInsideSingleQuotes(it, content)) {
-                    var nameEndIndex = content.indexOfAny(charArrayOf(' ', '\"'), it.range.first)
-                    if (nameEndIndex == -1) {
-                        nameEndIndex = content.length
-                    }
-                    val name = content.substring(it.range.first + 1, nameEndIndex)
-                    environment.getVariable(name)
+                if (notInsideSingleQuotes(it, content) || isCommand) {
+                    it.resolveVariableValues(content)
                 } else content
             }
             .let { resolveSingleQuotes(it) }
             .let { resolveDoubleQuotes(it) }
+    }
+
+    private fun MatchResult.resolveVariableValues(content: String): String {
+        var nameEndIndex = content.indexOfAny(charArrayOf(' ', '\"', '\'', '$'), this.range.first + 1)
+        if (nameEndIndex == -1) {
+            nameEndIndex = content.length
+        }
+        val name = content.substring(this.range.first + 1, nameEndIndex)
+        return environment.getVariable(name)
     }
 
     private fun resolveDoubleQuotes(content: String): String {
@@ -131,19 +152,20 @@ class CliCommandProcessor {
     }
 
     private fun buildCommand(tokens: List<Token>): Command {
-        val command = tokens.first()
+        val command = resolveArguments(tokens.first().content, true)
+
         val args = tokens.subList(1, tokens.size)
-        return when (command.content) {
+        return when (command) {
             "cat" -> Cat(tokensToArguments(args))
             "echo" -> Echo(tokensToArguments(args))
             "wc" -> Wc(tokensToArguments(args))
             "pwd" -> Pwd()
-            "exit" -> throw ExitCommandException()
+            "exit" -> Exit()
             else -> ExternalCommand(tokensToArguments(tokens).joinToString(" "))
         }
     }
 
     private fun tokensToArguments(tokens: List<Token>): List<String> {
-        return tokens.map { resolveArgument(it.content) }
+        return tokens.map { resolveArguments(it.content) }
     }
 }

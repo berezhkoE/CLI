@@ -1,13 +1,15 @@
 package ru.itmo.se.cli.command
 
-import ru.itmo.se.cli.exception.FileIsDirectoryException
-import ru.itmo.se.cli.exception.NoSuchFileOrDirectoryException
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.Reader
+import java.io.Writer
 import java.nio.charset.StandardCharsets
 
 
-class Wc(private val args: List<String>) : Command() {
+class Wc(private val args: List<String>) : Command {
+    private val newLineRegex = Regex("[\r\n]")
+
     private var totalByteCount = 0L
     private var totalLineCount = 0L
     private var totalWordCount = 0L
@@ -15,22 +17,25 @@ class Wc(private val args: List<String>) : Command() {
     private var lineCount = 0
     private var byteCount = 0L
 
-    override fun execute(): String {
+    override fun execute(input: Reader, output: Writer): Int {
         if (args.isNotEmpty()) {
-            return statsForArgs()
+            return statsForArgs(output)
         }
-        return prevOutput?.let { statsForPrevOutput(it) } ?: ""
+        return statsForPrevOutput(input, output)
     }
 
-    private fun statsForPrevOutput(input: String): String {
-        byteCount = input.toByteArray(StandardCharsets.UTF_8).size.toLong()
-        wordCount = input.split("\\s+").size
-        lineCount = Regex("[\r\n]").findAll(input).count()
+    private fun statsForPrevOutput(input: Reader, output: Writer): Int {
+        byteCount = input.readText().toByteArray(StandardCharsets.UTF_8).size.toLong()
+        wordCount = input.readText().split("\\s+").size
+        lineCount = newLineRegex.findAll(input.readText()).count()
 
-        return "$lineCount  $wordCount  ${byteCount + 1}"
+        output.appendLine("$lineCount  $wordCount  ${byteCount + 1}")
+        output.flush()
+
+        return 0
     }
 
-    fun statsForArgs(): String {
+    fun statsForArgs(output: Writer): Int {
         val result: MutableList<MutableList<String>> = ArrayList()
         for (str in args) {
             if (str.isNotBlank()) {
@@ -41,7 +46,7 @@ class Wc(private val args: List<String>) : Command() {
 
                     wordCount = 0
                     lineCount = 0
-                    File(str).bufferedReader().useLines {
+                    file.bufferedReader().useLines {
                         it.forEach { line ->
                             if (line.isNotEmpty()) {
                                 wordCount += line.split(Regex("\\s+")).size
@@ -60,10 +65,14 @@ class Wc(private val args: List<String>) : Command() {
                     result.add(argRes)
                 } catch (_: FileNotFoundException) {
                     if (file.isDirectory) {
-                        throw FileIsDirectoryException("wc", str)
+                        output.appendLine("wc: $str: Is a directory")
+                        output.flush()
+                        return 1
                     }
                     if (!file.isFile) {
-                        throw NoSuchFileOrDirectoryException("wc", str)
+                        output.appendLine("wc: $str: No such file or directory")
+                        output.flush()
+                        return 1
                     }
                 }
             }
@@ -77,17 +86,24 @@ class Wc(private val args: List<String>) : Command() {
             result.add(totalRes)
         }
 
-        val pad = result.map { list ->
+        val pad = result.flatMap { list ->
             list.dropLast(1)
                 .map {
                     it.length
                 }
-        }.toList().flatten().maxOrNull() ?: 0
+        }.toList().maxOrNull() ?: 0
 
-        return result.joinToString("\n") { line ->
-            line.joinToString(" ") {
+        result.forEachIndexed { index, line ->
+            val value = line.joinToString(" ") {
                 it.padStart(pad)
             }
+            if (index == result.lastIndex) {
+                output.append(value)
+            } else {
+                output.appendLine(value)
+            }
         }
+
+        return 0
     }
 }
